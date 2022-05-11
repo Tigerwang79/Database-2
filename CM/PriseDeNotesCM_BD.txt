@@ -1,0 +1,268 @@
+Transcript du cours pour pallier les lags de son:
+
+
+================================================================================================== ²
+============================================ Les Vues ============================================= 
+================================================================================================== 
+
+(diapos11 et 12)
+On va essayer de trouver ce qui change, on va faire une mise à jour différentielle. Ri+ = ce qu'on ajoute, Ri- = ce qu'on enlève et donc Ri = (Ri \ Ri-) U Ri+. \ = on retire à Ri... (\ := MINUS en fait -> oui!)
+
+Une vue est automaintenable si lors d'une mise à jour, la connaissance des Ri+, Ri- et de V suffit à calculer V+ et V-
+
+(diapo 13) 
+Ensuite on avait vu des exemples. Par exemple une vue concrète V1. Cette vue est automaintenable pour le insert mais pas pour le delete ou le update. Quelqu'un peut-il me dire pourquoi? Quand on ajoute une nouvelle valeur on peut recalculer le minimum en faisant min := MIN(min, nouvelle valeur) mais quand on enlève on ne sait pas si on retire le minimum... (on doit donc TOUT recalculer -> ce qu'on ne veut pas faire)
+
+Vue2: pourquoi celle-ci serait automaintenable? 
+Si on enlève un enregistrement dans la table correspondante, alors on vérifie si cet enregistrement vérifie la condition, dans ce cas on l'enlève aussi dans la vue.
+
+Vue3 :
+Quand on supprime, on ne peut pas savoir si c'est le dernier élément de sa catégorie (cf. c'est le DISTINCT qui empêche le DELETE ici) : donc on doit recalculer la vue pour savoir si on doit garder la catégorie en question (qui contient potentiellement plusieurs enregistrements)
+
+Vue mettable à jour : ne contient pas de UNION
+
+Une vue est un objet abstrait : ce n'est pas une table
+
+
+(diapo 14)
+/
+
+(diapo 15)
+les agrégats basés sur des fonctions distributives sont automaintenables 
+
+ex : SUM, COUNT, AVG
+
+
+(diapo 16)
+Cependant, il y a des agrégats automaintenables en insertion uniquement (Ex. SUM, MIN, MAX,COUNT ...) et certaines aussi en suppression (SUM(*), COUNT(*)).
+
+
+(diapo 17)
+Comportement de la vue sur la suppression :
+1. On va devoir tout recalculer
+2. On peut recalculer la vue seulement partiellement : on peut se contenter de recalculer la vue seulement pour les enregistrements de "Luxe".
+Cependant, il s'agit d'un cas particulier ici et il faut que le SGBD puisse généraliser cette méthode.
+
+
+
+================================================================================================== 
+=========================================== Les Droits ============================================= 
+================================================================================================== 
+
+(diapo 18)
+RaD
+
+(diapo 19)
+Vu dans le TP1 brièvement. Les droits= quand sur un rôle ou un utilisateur on fait un GRANT, ie. qu'on accorde des privilèges sur tout ou partie des services du SGBD (INSERT/ DELETE / etc.)
+
+(diapo 20)
+Catalogue : dépend su SGBD
+
+Catalogue d'Oracle : celui utilisé en TP (les tables un peu cheloues du TP2)
+
+(diapo 21)
+Droits définis suivants les utilisateurs (admin, autres)
+On peut mettre différents droits/privilèges sur les objets
+
+Exemple de rôle : utilisateur TP, rôle étudiant, rôle enseignant, admin (voir TP install)
+
+Rôle = ensemble de droits affecté à un utilisateur
+
+(diapo 22)
+Les commandes :
+- GRANT (donne les privilèges sur une table à ..)
+- REVOKE (enlève les privilèges précisés sur une table à préciser)
+
+Exemple de privilèges:
+    - SELECT
+    - INSERT
+    - DELETE
+    - UPDATE
+    - ...
+    
+Exemple final: GRANT INSERT ON matable TO toto;
+
+On peut nommer (voir exemple sur la slide) un ensemble de rôles pour pouvoir l'activer ou le désactiver facilement :
+évite de faire des bétises avec des droits trop vaste (un peu comme sur les distro Linux avec sudo : on emprunte la "couronne" et on la rend quand on a plus besoin)
+
+-stop pour les droits- 
+
+
+
+==================================================================================================
+======================== Contraintes d'intégrité et bases de données actives  =========================== 
+================================================================================================== 
+
+Elle était magnifique ton araignée :3 Mais elle a mal vécu la touche "SUPPR" x((x
+//\(oo)/\\ => je te rends ton araignée Paul :D
+
+
+(diapo 1)
+Contraintes d'intégrité -> "garantie" de la cohérence des données
+
+Le comportement du SGBD qu'on choisit pourra cependant être différent selon le système ou les réglages de l'administrateur.
+
+De temps en temps on ne peut pas satisfaire les contraintes de manière temporaire (par exemple une transaction). Il faut alors pouvoir lever la contrainte temporairement. Par exemple au cours d'une construction un objet n'est pas fini et donc forcément il ne peut pas respecter toutes les contraintes qui lui sont imposées.
+
+
+(diapo 2)
+On se servira de ces tables pour illustrer nos exemples avec les contraintes
+
+
+(diapo 3)
+Plusieurs types de contraintes (structurelles/non structurelles/temporelles):
+    
+Contraintes structurelles : 
+    -PRIMARY KEY
+    -FOREIGN KEY
+    -Contrainte de domaine (exemple âge < 130 ans... => il y a le mot clef CHECK en SQL) 
+    - Contrainte de non nullité (Not NULL)
+    
+Les contraintes structurelles peuvent être précisées dès la création de la table!
+
+
+(diapo 4)
+Contraintes non structurelles (non définies dans le schéma relationnel):
+  - sur une table
+  - sur plusieurs tables
+
+Ces-dernières contraintes peuvent s'exprimer comme des expressions SQL.
+
+(diapo 5)
+Contraintes temporelles (évolue au cours du temps) : 
+
+CSTATUT serait une expression qui vérifierait qu'on est pas passé de célibataire à divorcé sans passer par la case marié par exemple.
+
+-> nécessite de garder un historique des évolutions
+-> Implanter un automate : on peut le faire avec les trigger mais pas les assertions
+
+
+(diapo 6)
+Afin d'éviter des problèmes notamment avec les clés étrangères, on peut désactiver les contraintes lors du déroulement d'une transaction
+
+Une transaction passe d'un état cohérent à un autre mais ses états intermédiaires sont généralement dispensés de vérifier certaines contraintes. Une transaction se termine lorsqu'elle est validée ou qu'elle échoue. Dans les deux cas elle progresse ou revient à un état cohérent (qui respecte les contraintes).
+
+Ex : pendant un échange on enlève l'objet à quelqu'un avant de le donner à l'autre (ou inversement : on duplique l'objet pendant un certain temps) : pas grave tant qu'on va au bout du processus.
+
+
+(diapo 7)
+Il ne faut pas en oublier,  certes, mais il ne faut pas qu'elles soient contradictoires non plus! Ex. un vêtement qui ne doit pas être rouge mais on cherche vêtements rouges dans cette table uniquement... Pas très malin!
+
+
+(diapo 8)
+Conflit entre les contraintes possible : dans ce cas, on est baisés.
+-> il faut enlever une des contraintes ou la modifier.
+
+On ne sait actuellement pas automatiser la recherche d'un conflit entre contraintes : il faut vérifier les contraintes avec son cerveau simiesque. Sérieux? Dur... xD
+
+Conséquence: on n'a pas encore de système pouvant vérifier automatiquement la cohérence de nos contraintes!
+
+
+(diapo 9)
+Problème de non redondance des contraintes assez dur aussi! Notre ensemble de contrainte est-il minimal? Là encore => jus de cerveau... (Ou 1 000 000$ à celui ou celle qui trouvera un moyen d'automatiser ça)
+
+
+(diapo 10)
+Simplification opérationnelle:
+Vérifier toutes les contraintes à chaque instant est pas du tout opti :
+    Simplification opérationnelle -> on vérifie seulement quand on a besoin
+    -> on fait une liste des opérations qui peuvent porter atteinte à la contrainte.
+    
+    Ex: si on rajoute un taux il faut penser à rajouter 10 articles pour ce taux, pour ainsi correspondre à  la contrainte d'intégrité : il faut min 10 articles par taux.
+Certains SGBD peuvent détecter automatiquement les cas qui posent prbl.
+
+
+(diapo 11)
+Simplification différentielles = on limite les accès à la base et on vérifie les contraintes uniquement de ce qui va être ajouté/supprimé avant la mise à jour (dépend de la contrainte)
+
+Ex : CPRIXMIN : Check PRIXHT > 20 ?
+
+Avec un INSERT on regarde juste celui qu'on ajoute
+Avec un UPDATE on regarde aussi la nouvelle valeur seulement
+
+Avec CCOUTMIN : on doit tout recalculer car le tauxTVA. L'exemple n'est pas bon ici. Mais il y a des exemples ou c'est le cas.
+
+Pour certaines contraintes on ne peut donc pas fonctionner par "simplification différentielle".
+
+
+(diapo 12)
+
+a) Méthode brute : Très couteux
+
+b)
+
+On fait les tests seulement sur les modifs (R+ et R-) (quand c'est possible) si les contraintes sont validées on exporte les modifications -> moins couteux
+
+c)
+?
+
+(diapo 13)
+On ne peut pas diviser par 2 les prix inférieurs à 20 car on ne vérifie plus la contrainte d'intégrité : on ne sait pas si on annule la modification ou alors si on enlève les 3 enregistrements comme ils ne vérifient plus la condition. Il y a une ambiguité.
+
+(diapo 14)
+
+Si il y a une clé étrangère on ne sait pas si il faut supprimer la ligne de cette table lors d'une suppression dans la table quelle référence 
+-> il faut lire la doc de la base
+
+RTFM : Read The Fucking Manual*
+* : Valable aussi pour la lecture des poly quand tu es le prof
+
+(diapo 15)
+/
+
+
+(diapo 16)
+/
+
+
+(diapo 17)
+Assertions : contraintes non structurelles
+
+Syntaxe SQL:
+    
+CREATE ASSERTION nom_de_l_assertion {DEFERRABLE|NOT DEFERRABLE} 
+[BEFORE COMMIT | {AFTER|BEFORE} {INSERT|DELETE| UPDATE[OF {nomsattributs}]] 
+ON nom_table 
+CHECK condition_sql 
+[FOR EACH ROW OF nom_table] 
+
+
+(diapo 18)
+Ex : On précise ce que l'on doit vérifier et quand on doit le vérifier : 
+    "permet de gérer le moment où la contrainte va être vérifiée"
+
+
+(diapo 19 )
+Gros inconvénient si on ne peut pas exprimer les contraintes temporelles !
+(cf. diapo 5)
+
+(diapo 20)
+ Un déclencheur permet de réagir à ce qu'il se passe, par exemple une mise à jour. C'est une bonne idée mais on introduit encore de la complexité (du temps de calcul). Avec un déclencheur on pourrait effectivement introduire une contrainte comme celle de la diapo 5 (revenir à état célibataire...)
+
+Un déclencheur = un événement. Il se passe quelque-chose sur la base de donnée => on déclenche une action.
+
+(tout sur le diapo)
+
+(diapo 21)
+RAS (juste regarder la diapo pour la syntaxe SQL)
+
+On peut écrire des choses très fines (une ligne/table dans son état ancien/son nouvel état)
+
+
+(diapo 22)
+Un événement c'est un truc à faire avant/après/à la place de ..
+
+
+(diapo 23)
+Lire la slide en langage naturel : assez intuitif
+
+On ne peut pas réduire le prix d'un item de plus de 50% en 1 coup sinon ça affiche une alerte.
+
+---------- Fin du cours -
+(diapo 24)
+
+"On a fait un peu prè tout ce qui faut"
+
+
+
+(diapo 25)

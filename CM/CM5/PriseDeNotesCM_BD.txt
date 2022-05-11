@@ -1,0 +1,97 @@
+Transcript du cours pour pallier les lags de son:
+
+(diapos11 et 12)
+On va essayer de trouver ce qui change, on va faire une mise à jour différentielle. Ri+ = ce qu'on ajoute, Ri- = ce qu'on enlève et donc Ri = (Ri \ Ri-) U Ri+. \ = on retire à Ri... (\ := MINUS en fait -> oui!)
+
+Une vue est automaintenable si lors d'une mise à jour, la connaissance des Ri+, Ri- et de V suffit à calculer V+ et V-
+
+
+(diapo 13) 
+Ensuite on avait vu des exemples. Par exemple une vue concrète V1. Cette vue est automaintenable pour le insert mais pas pour le delete ou le update. Quelqu'un peut-il me dire pourquoi? Quand on ajoute une nouvelle valeur on peut recalculer le minimum en faisant min := MIN(min, nouvelle valeur) mais quand on enlève on ne sait pas si on retire le minimum... (on doit donc TOUT reclaculer -> ce qu'on ne veut pas faire)
+
+Vue2: pourquoi celle-ci serait automaintenable? 
+Si on enlève un enregistrement dans la table correspondante,alors on vérifie si cet enregistrement vérifie la condition, dans ce cas on l'enlève aussi dans la vue.
+
+Vue3 :
+Quand on supprime, on ne peut pas savoir si c'est le dernier élément de sa catégorie (cf. c'est le DISTINCT qui empêche le DELETE ici) : donc on doit recalculer la vue pour savoir si on doit garder la catégorie en question (qui contient potentiellement plusieurs enregistrements)
+
+Vue mettable à jour : ne contient pas de UNION
+
+Une vue est un objet abstrait : ce n'est pas une table
+
+
+(diapo 14)
+
+(diapo 15)
+
+les agrégats basés sur des fonctions distributives sont automaintenables 
+
+ex : SUM, COUNT, AVG
+
+
+(diapo 16)
+Cependant, il y a des agrégats automaintenables en insertion  (Ex. SUM, MIN, MAX, COUNT ...) d'autres en suppression uniquement, et d'autres en insertions et suppressions
+
+
+(diapo 17)
+
+Comportement de la vue sur la suppression :
+1. On va devoir tout recalculer
+2. On peut recalculer la vue seulement partiellement : on peut se contenter de recalculer la vue seulement pour les enregistrements de "Luxe".
+Cependant, il s'agit d'un cas particulier ici et il faut que le SGBD puisse généraliser cette méthode.
+
+
+
+================================================================================================== 
+=========================================== Les Droits ============================================= 
+================================================================================================== 
+
+(diapo 18)
+RaD
+
+(diapo 19)
+Vu dans le TP1 brièvement. Les droits= quand sur un rôle ou un utilisateur on fait un GRANT, ie. qu'on accorde des privilèges sur tout ou partie des services du SGBD (INSERT/ DELETE / etc.)
+
+(diapo 20)
+Catalogue : dépend su SGBD
+
+Catalogue d'Oracle : celui utilisé en TP (les tables un peu cheloues du TP2)
+
+(diapo 21)
+Droits définis suivants les utilisateurs (admin, autres)
+On peut mettre différents droits/privilèges sur les objets
+
+Exemple de rôle : utilisateur TP, rôle étudiant, rôle enseignant, admin (voir TP install)
+
+Rôle = ensemble de droits affecté à un utilisateur
+
+(diapo 22)
+
+Les commandes :
+- GRANT (donne les privilèges sur une table à ..)
+- REVOKE (enlève les privilèges précisés sur une table à préciser)
+
+Exemple de privilèges:
+    - SELECT
+    - INSERT
+    - DELETE
+    - UPDATE
+    - ...
+    
+Exemple final: GRANT INSERT ON matable TO toto;
+
+On peut nommer un ensemble de rôles pour pouvoir l'activer ou le désactiver facilement
+
+évite de faire des bétises avec des droits trop vaste (un peu comme sur les distro Linux avec sudo )
+(diapo 23)
+
+
+(diapo 24) 
+
+
+
+(diapo 25) 
+
+
+
+(diapo 26) 

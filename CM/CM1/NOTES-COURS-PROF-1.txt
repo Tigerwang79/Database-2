@@ -1,0 +1,142 @@
+Historique :
+
+	   * premiers développements de BD dans les années 60 (amélioration des
+             systèmes de gestion de fichiers)
+
+	   * La "vraie" 1ère génération -> fin des années 60 : basée sur les
+             modèles de réseaux et hiérarchiques
+	     	     -> séparation entre la description des données et leurs
+             manipulations par des programmes d'application
+	     		   -> modèles de données (+ ou - des graphes)
+			   -> Rq c'est toujours très important actuellement
+
+	   * 2ième génération de BD basée sur le modèle relationel (labo années
+             70, en opération années 80)
+	     	 -> SQL : partie "langage de définition des données"
+		    	       partie "langage de manipulation de données"
+	         -> C'est le système qui se charge d'optimiser les requêtes et
+             de choisir la meilleure stratégie de réponse
+	     	 -> C'est l'essentiel des systèmes commercialisés et utilisés
+             (Oracle, Ingers DB2, SQL server)
+
+	   * 3ième génération (labo années 80, opérationnel années 90)
+	     	   -> intégration relationnel et objet
+		   -> architecture mieux répartie
+		   -> règles actives pour maintenir la cohérence des données
+		   (ex Oracle 8)
+
+	   * 4ième génération : évolution pour mieux gérer les infos mal
+             structurés, les objets multimédias, l'extraction de connaissances
+             et l'aide à la décision...
+
+
+Objectifs des systèmes de gestion de bases de données :
+
+	  1. Indépendance physique
+	     càd indépendance entre les structures de stockage (organisation
+	     sous forme de fichiers,...) et les structures de données
+	     (organisation "logique" des informatiques)
+	     -> indépendance entre le schéma conceptuel et le schéma interne
+	     Id. pouvoir modifier l'organisation des fichiers (ajouter un index)
+	     SANS modifier les programmes utilisateurs (logiciel de calcul de paie)
+
+	  2. Indépendance logique
+	     * Il n'y pas un seul schéma externe, mais plusieurs (plusieurs
+	  groupes d'utilisateurs qui utilisent les données de façon différentes)
+	  (correspond à la notion de vue = présenter les données à chaque type
+	  d'utilisateurs)
+	  -> indépendance logique ; la possibilité de modifier les vues sans
+	  modifier le schéma conceptuel et sans modifier les autres vues
+
+	  Rq: modifier le schéma conceptuel -> modif effective des données =>
+	  peut nécessiter de modifier le stockage de données
+
+	  3. Recherche de données (déjà vu) qualification de caractéristiques =
+	  langages (SQL)
+
+	  4. Outils d'aide à l'administration de données
+	     - décentralisation de la description des données, tout en assurant
+	  une cohérence entre les diverses descriptions partielles (plusieurs
+	  administrateurs qui travaillent en collaboration)
+
+	  5. Efficacité d'accès aux données
+	     - pbs. * quantité importante de données
+	       	       * partage des ressources entre utilisateurs
+		   => limiter les E/S, limiter le nombre de données à examiner
+	  pour répondre à une requête
+	          accéder le plus efficacement possible aux données recherchées
+         -> gestion physique (index, etc)
+	 -> optimisation des requêtes
+
+	  6. Redondance contrôlée des données
+	     -> quand on enregistre les données par rapport aux applications, on
+	  rejette les données redondantes, l'administration de la BD centralise
+	  les données et évite la redondance
+	  MAIS les BD sont (de plus en plus) réparties et on s'est rendu compte
+	  qu'il valit mieux dupliquer certaines sur les machines qui les
+	  utilisent (par ex pour éviter des transferts réseau)
+	  => les SGBD peuvent maintenant gérer des données redondantes pour plus
+	  d'efficacité (redondance voulue)
+
+	  7. Cohérence des données
+	  - en général les données satisfont certaines propriétés, il faut
+	  pouvoir décrire ces propriétés afin que le système puisse les vérifier
+	  automatiquement (intégrité et BD actives)
+
+	  8. Partage des données
+	     - accès "simultanés" aux données (par ex. pb. des réservations de
+	  places concert, train, avion)
+	  	 => gestion des transactions (concurrence)
+
+	  9. Sécurité des données
+	     - les données doivent être protégés contre les accès interdits
+	  (gestion des droits)
+	    - les données doivent être protégées contre les pannes (programme,
+	  système, réseau)
+	  => pouvoir effectuer des restauration de données cohérentes (et les
+	  plus actuelles possibles) après une panne disque (par ex.)
+	       => gestion des transactions (récupération des erreurs) 
+
+
+Plan du cours
+     * Gestion physique : indexation
+     * Optimisation de requêtes
+     * Gestion des transactions
+       	       * transactions
+	       * récupération des erreurs
+	       * gestion de la concurrence
+     * Gestion des droits
+     * Vues
+     * Intégrité et BD actives
+       		* Contraintes d'intégrité
+		* Outils en SQL.
+
+----------------
+
+GESTION PHYSIQUE
+
+* Gestion de la mémoire et des fichiers
+  	  cf. cours d'architecture, système d'exploitation, programmation
+  	  système.
+
+	  -> fichiers :
+	     	      * composés d'articles (ou d'enregistrements) de taille
+	  fixe (pour simplifier)
+	  => on peut adapter ce qui suit quand les articles ne sont pas de
+	  taille fixe
+	  - accès aux fichiers par blocs complet (quantité d'info lue ou écrite)
+	  - on suppose un bloc constitué de k enregistrements
+		    
+         -> on cherche à minimiser le nombre d'E/S
+
+	 * Si on a besoin de lire presque tous les articles -> accès séquentiel
+
+	 * Si on a besoin de lire très peu d'articles -> accès direct, dans ce
+           cas il y a plusieurs manières de faire selon l'info. à partir de laquelle on
+              fait la recherche
+
+	      - recherche à partir de clé
+	      - hachage, accès indexé
+	      - recherche à partir d'attributs non discriminants ou à partir de
+	      - plusieurs attributs
+	         => index bitmap, index secondaires.
