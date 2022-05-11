@@ -1,0 +1,52 @@
+-- C-1
+ select * from joueur where taille > 2;
+
+-- ----------------------------------------------------------------------------
+--| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT  |        |    21 |   756 |    23   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS FULL| JOUEUR |    21 |   756 |    23   (0)| 00:00:01 |
+--
+-- Accès séquentiel à la table joueur ce qui est logique puisqu'il n'y a pas d'index sur l'attribut taille. 
+Le côut estimé est 23 ce qui correspond probablement à environ 23 E/S nécessaires pour lire les 88 blocs de la table 
+(l'optimiseur a donc lu environ 4 blocs par entrée sortie ce qui est possible vu le paramètre DB_FILE_MULTIBLOCK_READ_COUNT).
+
+-- C-2
+select * from joueur where joueurId = 46509;
+
+-------------------------------------------------------------------------------------------
+--| Id  | Operation                   | Name      | Rows  | Bytes | Cost (%CPU)| Time     |
+-------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT            |           |     1 |    36 |     2   (0)| 00:00:01 |
+--|   1 |  TABLE ACCESS BY INDEX ROWID| JOUEUR    |     1 |    36 |     2   (0)| 00:00:01 |
+--|*  2 |   INDEX UNIQUE SCAN         | PK_JOUEUR |     1 |       |     1   (0)| 00:00:01 |
+-----------------------------------------------------------------------------------------------
+-- Accès à la table joueur via l'index PK_JOUEUR ce qui est logique car on cherche 1 joueur parmi 11060 (donc prédicat très selectif). 
+Le coût estimé est d'ailleurs très faible : probablement 1 E/S pour la recherche dans l'index puis 1E/S 
+pour la lecture de la ligne via sont ROWID. Si on force l'optimiseur à faire un parcours séquentiel (voir requête et plan ci-dessous), 
+on retombe sur un coût estimé à 23 ce qui est très supérieur à celui estimé avec utilisation de l'index.
+
+select /*+ NO_INDEX(JOUEUR PK_JOUEUR) */ * from joueur where joueurId = 46509;
+
+------------------------------------------------------------------------------
+--| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT  |        |     1 |    36 |    23   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS FULL| JOUEUR |     1 |    36 |    23   (0)| 00:00:01 |
+------------------------------------------------------------------------------
+
+-- C-3
+select datematch, nom_equipe
+from match, equipe 
+where equipelocale=equipeid;
+
+-------------------------------------------------------------------------------
+--| Id  | Operation          | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+-------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT   |        | 25978 |   811K|    37   (0)| 00:00:01 |
+--|*  1 |  HASH JOIN         |        | 25978 |   811K|    37   (0)| 00:00:01 |
+--|   2 |   TABLE ACCESS FULL| EQUIPE |   299 |  5681 |     3   (0)| 00:00:01 |
+--|   3 |   TABLE ACCESS FULL| MATCH  | 25978 |   329K|    34   (0)| 00:00:01 |
+-------------------------------------------------------------------------------
+-- accès séquentiel aux table equipe et match, ce qui est logique vu que l'algorithme de jointure hash join est utilisé. 
+-- le hachage se fait bien sur la plus petite des deux tables (equipe) et ensuite la table la plus grosse est parcourue (match). On observe que le coût estimé de l'algorithme est 37 soit : coût du parcours de equipe + coût du parcours de match. La table de hachage a donc été mise en mémoire centrale (logique vu la faible taille de la table équipe). On arrive donc à un coût minimum pour une jointure (le parcours des deux tables).

@@ -1,0 +1,31 @@
+--- Q.B-1 --- :
+
+insert into ligue 
+select l.id, l.name, c.name 
+from data_L3.league l, data_L3.country c 
+where l.country_id = c.id;
+
+
+CREATE DATABASE LINK to_b
+  CONNECT TO username IDENTIFIED BY password
+  USING tns_alias_on_a_pointing_to_b
+
+And then when you connect to A, you could do something like
+
+SELECT aa.name, dd.id
+  FROM a aa,
+       d@to_b dd
+ WHERE aa.some_key = dd.some_key
+
+
+create public database link
+  mylink
+connect to
+  remote_username
+identified by
+  mypassword
+using 'myserver:1521/MYSID';
+
+
+--- Q.B-2 --- :
+

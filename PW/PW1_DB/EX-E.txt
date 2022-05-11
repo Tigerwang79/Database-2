@@ -1,0 +1,111 @@
+-- E-1
+select nom_joueur, prenom_joueur, trunc((sysdate-datenaissance)/365.25)
+  from joueur where datenaissance =  
+                (select max(datenaissance) from joueur);
+				
+-- E-2
+select nom_joueur, prenom_joueur, trunc((sysdate-datenaissance)/365.25), nom_equipe, nom_ligue
+from joueur, engager, equipe, ligue  
+where joueur.joueurid = engager.joueurid
+ and equipe.equipeid = engager.equipeid
+ and equipe.ligueid = ligue.ligueid
+ and datenaissance =  
+          (select max(datenaissance) from joueur);
+ 
+-- E-3
+select nom_joueur, prenom_joueur, trunc((datedeb-datenaissance)/365.25)
+from joueur, engager, saison
+where joueur.joueurid = engager.joueurid
+  and engager.saisonid = saison.saisonid
+  and saison.libelle = '2008/2009'
+  and datenaissance =  
+    (select max(datenaissance) from joueur, engager, saison
+      where joueur.joueurid = engager.joueurid
+        and engager.saisonid = saison.saisonid
+        and saison.libelle = '2008/2009'
+    );
+
+-- E-4
+select nom_joueur, prenom_joueur, trunc((datedeb-datenaissance)/365.25), saison.libelle
+from joueur, engager, saison
+where joueur.joueurid = engager.joueurid
+  and engager.saisonid = saison.saisonid
+  and datedeb-datenaissance =  
+    (select min(datedeb-datenaissance) from joueur, engager, saison s2
+      where joueur.joueurid = engager.joueurid
+        and engager.saisonid = s2.saisonid
+        and s2.saisonid = saison.saisonid
+    );
+
+-- E-5
+select nom_ligue, sum(scorelocale + scorevisiteur)
+from match, equipe, ligue, saison
+where match.datematch between saison.datedeb and saison.datefin
+ and match.equipelocale = equipe.equipeid
+ and equipe.ligueid = ligue.ligueid
+ and saison.libelle = '2015/2016'
+group by ligue.ligueid, ligue.nom_ligue 
+order by sum(scorelocale + scorevisiteur) desc
+
+-- E-6
+
+select equipe.nom_equipe, count(*)
+from match, equipe, ligue, saison
+where match.datematch between saison.datedeb and saison.datefin
+ and match.equipelocale = equipe.equipeid
+ and equipe.ligueid = ligue.ligueid
+ and saison.libelle = '2015/2016'
+ and ligue.nom_ligue = 'France Ligue 1'
+ and match.scorelocale > match.scorevisiteur
+ group by equipe.equipeid, equipe.nom_equipe
+ having count(*) > 10
+ order by count(*) desc
+
+-- E-7
+(select e1.nom_equipe, e2.nom_equipe
+from match m1, equipe e1, equipe e2, saison, ligue
+where m1.datematch between saison.datedeb and saison.datefin
+ and m1.datematch < to_date('31-12-2015', 'DD-MM-YYYY')
+ and m1.equipelocale = e1.equipeid
+  and m1.equipevisiteur = e2.equipeid
+ and e1.ligueid = ligue.ligueid
+ and saison.libelle = '2015/2016'
+ and ligue.nom_ligue = 'France Ligue 1')
+minus
+(select e2.nom_equipe, e1.nom_equipe
+from match m1, equipe e1, equipe e2, saison, ligue
+where m1.datematch between saison.datedeb and saison.datefin
+ and m1.datematch > to_date('31-12-2015', 'DD-MM-YYYY')
+ and m1.equipelocale = e1.equipeid
+  and m1.equipevisiteur = e2.equipeid
+ and e1.ligueid = ligue.ligueid
+ and saison.libelle = '2015/2016'
+ and ligue.nom_ligue = 'France Ligue 1')
+                  
+-- E-8
+select e1.nom_equipe, e2.nom_equipe,  m1.scorelocale, m1.scorevisiteur
+from match m1, equipe e1, equipe e2, match m2, saison, ligue
+where m1.datematch between saison.datedeb and saison.datefin
+and m2.datematch between saison.datedeb and saison.datefin
+ and m1.equipelocale = e1.equipeid
+  and m1.equipevisiteur = e2.equipeid
+  and m2.equipelocale = e2.equipeid
+  and m2.equipevisiteur = e1.equipeid
+  and m1.scorelocale = m2.scorelocale
+  and m1.scorevisiteur = m2.scorevisiteur
+ and e1.ligueid = ligue.ligueid
+ and saison.libelle = '2015/2016'
+ and ligue.nom_ligue = 'France Ligue 1'
+ and e1.nom_equipe < e2.nom_equipe
+
+-- E-9
+select nom_joueur, count(minute) as nb
+from joueur left outer join marquer on joueur.joueurid = marquer.joueurid, 
+     engager, equipe, saison
+where joueur.joueurid = engager.joueurid
+and  engager.equipeid = equipe.equipeid
+and engager.saisonid = saison.saisonid
+and saison.libelle = '2015/2016'
+and equipe.nom_court = 'PSG'
+group by joueur.joueurid, joueur.nom_joueur
+order by count(minute) desc, joueur.nom_joueur

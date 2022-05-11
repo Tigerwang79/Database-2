@@ -1,0 +1,49 @@
+--D
+
+
+--Attribution des priviliges a TP ---
+  -- En tant qu'admin :--
+grant create role to tp;
+grant create user to tp;
+grant create session to tp;
+GRANT SELECT_CATALOG_ROLE to tp;
+
+-- Creation des roles ---
+
+Alter session set "_ORACLE_SCRIPT"=true;
+create role administrateur;
+create role commentateur;
+create role internaute;
+
+-- Creation des utilisateurs --
+create user JeuAdmin IDENTIFIED by TPL3;
+create user JeuCom IDENTIFIED by TPL3;
+create user JeuInte IDENTIFIED by TPL3;
+
+-- Atrribution des privilides de connection --
+grant connect to JeuAdmin;
+grant connect to JeuCom;
+grant connect to JeuInte;
+
+-- Attribution privilige aux roles --
+     
+GRANT insert, update, select on  Equipe to administrateur;
+GRANT insert, update, select on  Joueur to administrateur;
+GRANT insert, update, select on  Saison to administrateur;
+GRANT insert, update, select on  Engager to administrateur;
+GRANT insert, update, select on  Ligue to administrateur;
+GRANT insert, update, select on  Match to administrateur;
+
+GRANT select, update scoreLocale, scoreVisiteur on Match to commentateur;
+
+GRANT insert on  Equipe to internaute;
+GRANT insert on  Joueur to internaute;
+GRANT insert on  Saison to internaute;
+GRANT insert on  Engager to internaute;
+GRANT insert on  Ligue to internaute;
+GRANT insert on  Match to internaute;
+
+----  attribution aux users --
+GRANT administrateur  TO JeuAdmin;
+GRANT commentateur  TO JeuCom;
+GRANT internaute  TO JeuInte;

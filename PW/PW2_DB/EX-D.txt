@@ -1,0 +1,230 @@
+-- D-1
+-- Filtre très selectif (3/11060), nombreuses valeurs différents dans la colonne nom_joueur => index btree
+
+create index idx_joueur_nom on joueur(nom_joueur);
+
+-- Facile d'utiliser cet index dans le cadre de cette requête => on s'attend à le voir dans le plan d'exécution
+
+select * from joueur where nom_joueur > 'von';
+
+------------------------------------------------------------------------------------------------------
+--| Id  | Operation                           | Name           | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                    |                |     3 |   108 |     5   (0)| 00:00:01 |
+--|   1 |  TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR         |     3 |   108 |     5   (0)| 00:00:01 |
+--|*  2 |   INDEX RANGE SCAN                  | IDX_JOUEUR_NOM |     3 |       |     2   (0)| 00:00:01 |
+--------------------------------------------------------------------------------------------------------
+-- effectivement, le coût est bien moindre qu'un parcours séquentiel (5 vs 23)
+
+-- D-2
+
+-- le filtre n'est plus selectif (11057/11060)
+
+-- on ne s'attend plus à voir l'index utilisé.
+
+select * from joueur where nom_joueur < 'von';
+
+------------------------------------------------------------------------------
+--| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT  |        | 11057 |   388K|    23   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS FULL| JOUEUR | 11057 |   388K|    23   (0)| 00:00:01 |
+------------------------------------------------------------------------------
+-- effectivement. Si on forcait à utiliser l'index, on passe à un coût de 10550 ...
+
+-- D-3
+-- Le filtre est très selectif (124/11060) mais il faut quand même aller chercher les 124 lignes. 
+Si elles sont toutes dans un bloc différent, cela va coûter plus qu'un parcours séquentiel (environ 23 E/S)
+
+select * from joueur where nom_joueur > 'van';
+
+------------------------------------------------------------------------------
+--| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT  |        |   121 |  4356 |    23   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS FULL| JOUEUR |   121 |  4356 |    23   (0)| 00:00:01 |
+------------------------------------------------------------------------------
+-- Effectivement, l'optimiseur préfère un parcours séquentiel. Si on force à utiliser l'index, on trouve un coût estimé à 118 (> 23)
+-- Donc ici cela vient du fait que le prédicat n'est pas assez selectif compte tenu de la petite taille de la table et aussi du clustering_factor de l'index qui est à 10519 (donc la table n'est physiquement pas trié par nom).
+
+-- Si on fait croire à l'optimiseur qu'on a 1 000 000 de lignes dans joueur :
+EXEC dbms_stats.set_table_stats(USER, 'JOUEUR', NUMROWS=>1000000, NUMBLKS=>100000);
+EXEC dbms_stats.set_index_stats(USER, 'IDX_JOUEUR_NOM',NUMROWS=>1000000, NUMLBLKS=>40000,NUMDIST=>1000000);
+
+select * from joueur where nom_joueur > 'van';
+
+--------------------------------------------------------------------------------------------------------
+--| Id  | Operation                           | Name           | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                    |                | 10940 |   384K|   555   (0)| 00:00:01 |
+--|   1 |  TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR         | 10940 |   384K|   555   (0)| 00:00:01 |
+--|*  2 |   INDEX RANGE SCAN                  | IDX_JOUEUR_NOM | 10940 |       |   439   (0)| 00:00:01 |
+--------------------------------------------------------------------------------------------------------
+-- L'index est bien utilisé avec un coût de 555 (vs 27 109 pour un parcours séquentiel en forcant)
+
+-- on remet les stats correctement :
+exec dbms_stats.gather_schema_stats('L3IT1');
+
+-- D-4 liste des joueurs dont le prénom est inconnu
+-- il y a de nombreux prénoms différents (2948). On pourrait être tenté de créer un btree sur la colonne prénom, 
+cependant, la valeur null n'est pas indexée donc il ne sera pas utilisé.
+-- on test :
+
+create index idx_joueur_prenom on joueur(prenom_joueur);
+
+select * from joueur where prenom_joueur is null;
+
+------------------------------------------------------------------------------
+--| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT  |        |   684 | 24624 |    23   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS FULL| JOUEUR |   684 | 24624 |    23   (0)| 00:00:01 |
+------------------------------------------------------------------------------
+-- confirmation. cela ne sert à rien de forcer à utiliser l'index, l'optimiseur ne peut pas l'utiliser.
+
+-- D-5 
+-- filtre très selectif. Pas de difficulté à utiliser l'index (trié par nom) => on attend l'utilisation de l'index
+
+select * from joueur where nom_joueur like 'Ib%'
+
+--------------------------------------------------------------------------------------------------------
+--| Id  | Operation                           | Name           | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                    |                |     3 |   108 |     6   (0)| 00:00:01 |
+--|   1 |  TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR         |     3 |   108 |     6   (0)| 00:00:01 |
+--|*  2 |   INDEX RANGE SCAN                  | IDX_JOUEUR_NOM |     3 |       |     2   (0)| 00:00:01 |
+--------------------------------------------------------------------------------------------------------
+-- confirmation coût de 6 vs 23 pour parcours séquentiel
+
+-- D-6 
+-- filtre très selectif (9/11060), cependant aucun moyen de chercher efficacement dans l'index.
+
+select * from joueur where nom_joueur like '%oz'
+
+------------------------------------------------------------------------------
+--| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT  |        |   553 | 19908 |    23   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS FULL| JOUEUR |   553 | 19908 |    23   (0)| 00:00:01 |
+------------------------------------------------------------------------------
+-- l'index n'est effectivement pas utilisé en forcant on trouve un coût de 557, le parcours de tout l'index 
++ aller ensuite rechercher les blocs correspondant aux rowid trouvés est trop coûteux.
+
+-- D-7
+-- toutes l'informations à afficher est dans l'index qui est plus petit que la table (donc surement plus rapide à parcourir que celle-ci).
+
+select count(*) from joueur where nom_joueur like '%oz'
+
+------------------------------------------------------------------------------------------
+--| Id  | Operation             | Name           | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT      |                |     1 |     9 |    10   (0)| 00:00:01 |
+--|   1 |  SORT AGGREGATE       |                |     1 |     9 |            |          |
+--|*  2 |   INDEX FAST FULL SCAN| IDX_JOUEUR_NOM |     9 |    81 |    10   (0)| 00:00:01 |
+------------------------------------------------------------------------------------------
+-- on voit effectivement que l'optimiseur ne se sert que de l'index et il lui faut environ 10 E/S pour parcourir les 30 blocs feuilles de l'index 
+
+-- D-8
+-- filtre selectif 5/11060
+-- Les majuscules changent l'ordre alphabétique, donc l'index simple sur le nom ne sera pas utilisé.
+-- on peut par contre faire un index sur les valeurs obtenues lorsqu'on applique la fonction upper :
+
+create index idx_joueur_upper_nom on joueur(upper(nom_joueur));
+
+select * from joueur where upper(nom) = 'MACDONALD';
+
+--------------------------------------------------------------------------------------------------------------
+--| Id  | Operation                           | Name                 | Rows  | Bytes | Cost (%CPU)| Time     |
+--------------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                    |                      |   111 |  3996 |    22   (0)| 00:00:01 |
+--|   1 |  TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR               |   111 |  3996 |    22   (0)| 00:00:01 |
+--|*  2 |   INDEX RANGE SCAN                  | IDX_JOUEUR_UPPER_NOM |    44 |       |     1   (0)| 00:00:01 |
+-------------------------------------------------------------------------------------------------------------- 
+-- l'index est bien utilisé. Le coût est proche d'un parcours séquentiel
+
+-- D-9 
+-- environ 20 tailles différentes => index bitmap
+-- le filtre est selectif (12/11060)
+
+create bitmap index bidx_joueur_taille on joueur(taille);
+
+select * from joueur where taille in (1.57, 1.6, 1.63);
+
+-------------------------------------------------------------------------------------------------------------
+--| Id  | Operation                            | Name               | Rows  | Bytes | Cost (%CPU)| Time     |
+-------------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                     |                    |    12 |   432 |     5   (0)| 00:00:01 |
+--|   1 |  INLIST ITERATOR                     |                    |       |       |            |          |
+--|   2 |   TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR             |    12 |   432 |     5   (0)| 00:00:01 |
+--|   3 |    BITMAP CONVERSION TO ROWIDS       |                    |       |       |            |          |
+--|*  4 |     BITMAP INDEX SINGLE VALUE        | BIDX_JOUEUR_TAILLE |       |       |            |          |
+-------------------------------------------------------------------------------------------------------------
+-- L'index bitmap est bien utilisé pour lire les 12 lignes le coût estimé est seulement de 5 E/S
+--
+
+-- D-10
+-- le filtre est selectif 12/11060
+-- la question est de savoir si on crée un index sur taille ou sur nom (on pourrait aussi faire un btree sur (taille, nom) ou sur (nom, taille)
+-- ici le filtre taille=2.03 est très selectif (contrairement à nom_joueur like 'M%'). On a tout intérêt à créer uniquement un index sur taille.
+-- Si on essaie la requête avec les deux index créés (sur nom et taille)
+
+select * from joueur where taille = 2.03 and nom_joueur like 'M%'
+
+----------------------------------------------------------------------------------------------------------
+--| Id  | Operation                           | Name               | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                    |                    |     1 |    36 |     3   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR             |     1 |    36 |     3   (0)| 00:00:01 |
+--|   2 |   BITMAP CONVERSION TO ROWIDS       |                    |       |       |            |          |
+--|*  3 |    BITMAP INDEX SINGLE VALUE        | BIDX_JOUEUR_TAILLE |       |       |            |          |
+------------------------------------------------------------------------------------------------------------
+-- on constate qu'effectivement seul l'index sur taille est utilisé.
+
+-- D-11
+-- les deux filtres on quasiment la même selectivité 129/11060 133/11060
+-- on essaie avec les deux index :
+
+select * from joueur where taille = 1.96 and nom_joueur like 'Z%'
+
+------------------------------------------------------------------------------------------------------------
+--| Id  | Operation                           | Name               | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                    |                    |     1 |    36 |     4  (25)| 00:00:01 |
+--|   1 |  TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR             |     1 |    36 |     4  (25)| 00:00:01 |
+--|   2 |   BITMAP CONVERSION TO ROWIDS       |                    |       |       |            |          |
+--|   3 |    BITMAP AND                       |                    |       |       |            |          |
+--|*  4 |     BITMAP INDEX SINGLE VALUE       | BIDX_JOUEUR_TAILLE |       |       |            |          |
+--|   5 |     BITMAP CONVERSION FROM ROWIDS   |                    |       |       |            |          |
+--|   6 |      SORT ORDER BY                  |                    |       |       |            |          |
+--|*  7 |       INDEX RANGE SCAN              | IDX_JOUEUR_NOM     |       |       |     2   (0)| 00:00:01 |
+--
+-- les deux sont utilisés conjointement
+
+-- D-12
+-- Le filtre est selectif, cependant le filtre est traduit en <> 1.65 AND <> 1.7 ...
+-- Pour chaque filtre <> v l'optimiseur considère qu'il faut regarder toutes les autres colonnes de l'index (autre que V) 
+ 
+select * from joueur where nom not in (1.65,1.68,1.7,1.73,1.75,1.78,1.8,1.83,1.85,1.88,1.91,1.93,1.96,1.98,2.01,2.03,2.08);
+
+------------------------------------------------------------------------------
+--| Id  | Operation         | Name   | Rows  | Bytes | Cost (%CPU)| Time     |
+------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT  |        |    12 |   432 |    23   (0)| 00:00:01 |
+--|*  1 |  TABLE ACCESS FULL| JOUEUR |    12 |   432 |    23   (0)| 00:00:01 |
+------------------------------------------------------------------------------
+-- l'index n'est pas utilisé
+--
+-- si on réécrit la requête en prenant en compte le fait qu'il y ait 20 valeurs distinctes 
+
+select * from joueur where taille in (1.57,1.6, 1.63);
+
+-------------------------------------------------------------------------------------------------------------
+--| Id  | Operation                            | Name               | Rows  | Bytes | Cost (%CPU)| Time     |
+-------------------------------------------------------------------------------------------------------------
+--|   0 | SELECT STATEMENT                     |                    |    12 |   432 |     5   (0)| 00:00:01 |
+--|   1 |  INLIST ITERATOR                     |                    |       |       |            |          |
+--|   2 |   TABLE ACCESS BY INDEX ROWID BATCHED| JOUEUR             |    12 |   432 |     5   (0)| 00:00:01 |
+--|   3 |    BITMAP CONVERSION TO ROWIDS       |                    |       |       |            |          |
+--|*  4 |     BITMAP INDEX SINGLE VALUE        | BIDX_JOUEUR_TAILLE |       |       |            |          |
+-------------------------------------------------------------------------------------------------------------
+-- l'index est utilisé

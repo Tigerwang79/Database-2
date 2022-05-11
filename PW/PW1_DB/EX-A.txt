@@ -1,0 +1,96 @@
+--- Q.A-1 & Q.A-2 --- :
+
+DROP TABLE Equipe;
+CREATE TABLE Equipe(
+equipeId INT,
+nom_equipe VARCHAR(100),
+nom_court VARCHAR(3),
+ligue INT,
+CONSTRAINT PK_Equipe PRIMARY KEY (equipeId)
+);
+
+DROP TABLE Ligue;
+CREATE TABLE Ligue(
+ligueId INT,
+nom_ligue VARCHAR(100),
+pays VARCHAR(100),
+CONSTRAINT PK_Ligue PRIMARY KEY (ligueId)
+);
+
+DROP TABLE Saison;
+CREATE TABLE Saison(
+saisonId INT,
+libelle INT,
+dateDeb DATE,
+dateFin DATE,
+CONSTRAINT PK_Saison PRIMARY KEY (saisonId)
+);
+
+DROP TABLE Joueur;
+CREATE TABLE Joueur(
+joueurId INT,
+nom_joueur VARCHAR(100),
+prenom_joueur VARCHAR(100),
+dateNaissance DATE,
+taille INT,
+poids INT,
+CONSTRAINT PK_Joueur PRIMARY KEY (joueurId)
+);
+
+DROP TABLE Match;
+CREATE TABLE Match(
+matchId INT,
+dateMatch DATE,
+scoreLocale INT,
+scoreVisiteur INT,
+CONSTRAINT PK_Match PRIMARY KEY (matchId)
+);
+
+CREATE TABLE participer(
+equipeId INT,
+ligueId INT,
+CONSTRAINT PK_participer PRIMARY KEY (equipeId),
+CONSTRAINT FK_participer_Equipe FOREIGN KEY (equipeId) REFERENCES Equipe (equipeId),
+CONSTRAINT FK_participer_Ligue FOREIGN KEY (ligueId) REFERENCES Ligue (ligueId)
+);
+
+CREATE TABLE jouer_locale(
+matchId INT,
+ligueId INT,
+CONSTRAINT PK_jouer_locale PRIMARY KEY (matchId),
+CONSTRAINT FK_jouer_locale_Ligue FOREIGN KEY (ligueId) REFERENCES Ligue (ligueId),
+CONSTRAINT FK_jouer_locale_Match FOREIGN KEY (matchId) REFERENCES Match (matchId)
+);
+
+CREATE TABLE jouer_visiteur(
+matchId INT,
+ligueId INT,
+CONSTRAINT PK_jouer_visiteur PRIMARY KEY (matchId),
+CONSTRAINT FK_jouer_visiteur_Ligue FOREIGN KEY (ligueId) REFERENCES Ligue (ligueId),
+CONSTRAINT FK_jouer_visiteur_Match FOREIGN KEY (matchId) REFERENCES Match (matchId)
+);
+
+CREATE TABLE marquer(
+joueurId INT,
+matchId INT,
+minute INT,
+CONSTRAINT PK_marquer PRIMARY KEY (joueurId,matchId,minute),
+CONSTRAINT FK_marquer_Joueur FOREIGN KEY (joueurId) REFERENCES Joueur (joueurId),
+CONSTRAINT FK_marquer_Match FOREIGN KEY (matchId) REFERENCES Match (matchId)
+);
+
+CREATE TABLE engager(
+saisonId INT,
+joueurId INT,
+equipeId INT,
+CONSTRAINT PK_engager PRIMARY KEY (saisonId,joueurId,equipeId),
+CONSTRAINT FK_engager_Joueur FOREIGN KEY (joueurId) REFERENCES Joueur (joueurId),
+CONSTRAINT FK_engager_Saison FOREIGN KEY (saisonId) REFERENCES Saison (saisonId),
+CONSTRAINT FK_engager_Equipe FOREIGN KEY (equipeId) REFERENCES Equipe (equipeId)
+);
+
+
+--- Q.A-3 --- :
+
+alter table Marquer add seconde number(2);
+alter table ligue modify nom_ligue varchar2(150);

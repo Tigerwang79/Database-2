@@ -1,0 +1,70 @@
+show parameters DB_BLOCK_SIZE;
+desc joueur;
+
+--question 2
+select bytes/1024/1024 MB from user_segments where segment_name='JOUEUR'; -- res 0.5625
+
+select blocks nbBloc from user_segments where segment_name='JOUEUR'; -- res 72
+
+-- taille en MO de la table joueur (0.5625/11060)*1024*1024=~53.33
+
+--question 3
+SHOW PARAMETER DB_FILE_MULTIBLOCK_READ_COUNT ; -- 37 blocs 
+-- On se rend compte que l'on peut parcourir tous les enregistrements de Joueur avec 2 E/S 
+-- donc il n'est peut-être pas nécessaire d'avoir un index
+update equipe set nom_equipe = replace(Nom_equipe, 'é', 'e');
+exec dbms_stats.gather_schema_stats('TP');
+select index_name, index_type, blevel from user_indexes where Tablespace_name='USERS';
+-- soluce prof
+select index_name, decode(index_type, 'NORMAL', 'B-TREE'), blevel, clustering_factor from user_indexes;
+--decode(index_type, 'NORMAL', 'B-TREE'),ça permet de remplacer NORMAL par B-TREE
+
+
+
+-- pour Joueur ce que j'ai c'est 11060 lignes et clustering_factor pour PK_Joueur de 
+--le clustering_factor de l'index PK_Joueur est 10836 est proche du nombre de lignes de la table
+--la table n'est rangée de façon ordonnée sur le disque
+--deux lignes qui ont des clefs consécutives ne sont problablement pas rangeés de façon consécutives dans les blocks
+--du coup, deux éléments du même noeud pointent vraisemblement vers des blocs différents
+-- ce constat montre que, dans ce cas, l'utilisation d'un index b-tree pour les requêtes par plage de valeurs est d'un intérêt limité
+
+select blocks, bytes/1024/1024 as Mo from user_segments where segment_name = 'PK_JOUEUR';
+
+//Correction Professeur
+
+Attention, il faut avoir le droit
+grant SELECT_CATALOG_ROLE to L3IT; 
+
+-- A-1
+show parameter DB_BLOCK_SIZE; -- Réponse = 8,192 Ko
+
+-- A-2
+select blocks, bytes/1024/1024 as Mo
+from user_segments
+where segment_name = 'JOUEUR'; -- Réponse = 88 blocs, 0.6875Mo. 
+
+Comme il y a 11060 lignes => ~62 octets la ligne (mais ne prend pas en compte la place prise dans les blocs pour le schéma, 
+la place laissée vide dans les blocs au cas où les lignes changent ...)
+
+-- A-3
+show parameter DB_FILE_MULTIBLOCK_READ_COUNT; -- Réponse = 128
+-- On en déduit que si les blocs de la table sont continus, elle peut potentiellement être lu en une seule E/S. 
+Donc, même si un index semble
+-- pertinent (parce qu'il permet d'obtenir peu de lignes de la table), il ne sera pas forcément utilisé.
+
+-- A-4
+select index_name, decode(index_type, 'NORMAL', 'B-TREE'), blevel, clustering_factor
+from user_indexes; -- le décode permet juste de remplacer normal par b-tree, blevel donne 0 si racine = feuille
+-- par défaut, un index b-tree est créé sur la clé primaire de chaque table.
+-- le clustering_factor de l'index PK_Joueur est 10836 (sur ma machine) et donc proche du nombre de lignes de la table. 
+En conséquence, cette table n'est pas ordonnée (par rapport à la clé primaire) sur le disque
+ce qui signifie que deux lignes ayant des identifiants consécutifs ne sont pas stockées à la suite dans les blocs de la table ; 
+en conséquence, deux entrées dans le même noeud feuille du b-tree ont de très grande chance de pointer vers deux blocs de données différents. Cela limte l'intérêt de l'index notamment pour les requête par plage de valeur (select * from joueur where id < 10 -> risque de couter 10 E/S alors que si le clustering_factor était faible, ce serait probablement 1 seule)
+
+-- A-5
+select blocks, bytes/1024/1024 as Mo
+from user_segments
+where segment_name = 'PK_JOUEUR'; -- Réponse = 40 blocs, 0.3125Mo. 
+Soit environ la moité de la table. Logique car la table à 6 colonnes alors que les noeud de l'index au niveau feuille vont contenir 
+la clé + rowid (et il faut ajouter le noeud racine). 
+En regardant l'attribut leaf_blocks dans user_indexes, on trouve qu'il y a 31 blocs feuille dans l'index et 9 bloc à la racine.

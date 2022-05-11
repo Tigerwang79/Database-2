@@ -1,0 +1,65 @@
+-- A1
+create or replace view E5 as 
+select nom_ligue, sum(scorelocale + scorevisiteur) as nbbuts
+from match, equipe, ligue, saison
+where match.datematch between saison.datedeb and saison.datefin
+ and match.equipelocale = equipe.equipeid
+ and equipe.ligueid = ligue.ligueid
+ and saison.libelle = '2015/2016'
+group by ligue.ligueid, ligue.nom_ligue 
+order by sum(scorelocale + scorevisiteur) desc;
+
+
+-- A2 
+select Equipe, sum(pts) from Equipe_point group by Equipe order by sum(pts) desc;
+
+
+-- view
+create or replace view match_aller as 
+select nom_equipe as equipe,
+        CASE 
+         WHEN scorelocale > scorevisiteur then 3
+         WHEN scorelocale = scorevisiteur then 1
+         ELSE 0
+        END as Pts
+from match, equipe, ligue, saison
+where match.datematch between saison.datedeb and saison.datefin
+ and match.equipelocale = equipe.equipeid
+ and equipe.ligueid = ligue.ligueid
+ and saison.libelle = '2014/2015'
+ and ligue.nom_ligue = 'France Ligue 1';
+
+ create or replace view match_retour as 
+select nom_equipe as equipe,
+        CASE 
+         WHEN scorelocale < scorevisiteur then 3
+         WHEN scorelocale = scorevisiteur then 1
+         ELSE 0
+        END as Pts
+from match, equipe, ligue, saison
+where match.datematch between saison.datedeb and saison.datefin
+ and match.equipevisiteur = equipe.equipeid
+ and equipe.ligueid = ligue.ligueid
+ and saison.libelle = '2014/2015'
+ and ligue.nom_ligue = 'France Ligue 1';
+
+ create or replace view equipe_point as
+(select * from match_aller)
+union all
+(select * from match_retour);
+
+
+-- A3
+create or replace view match_aller as select nom_equipe as equipe,
+CASE WHEN scorelocale > scorevisiteur then 3 WHEN scorelocale = 
+scorevisiteur then 1 ELSE 0 END as Pts, CASE WHEN scorelocale > 
+scorevisiteur then 1 else 0 end as G, CASE WHEN scorelocale = 
+scorevisiteur then 1 else 0 end as N, CASE WHEN scorelocale < 
+scorevisiteur then 1 else 0 end as P, scorelocale as BP, scorevisiteur as BC, scorelocale-scorevisiteur as DB 
+from match, equipe, ligue, saison where match.datematch between saison.datedeb 
+and saison.datefin and match.equipelocale = equipe.equipeid 
+and equipe.ligueid = ligue.ligueid and saison.libelle = '2014/2015' 
+and ligue.nom_ligue = 'France Ligue 1'; 
+
+create or replace view match_retour as select nom_equipe as equipe, CASE 
+WHEN scorelocale < scorevisiteur then 3 WHEN scorelocale = scorevisiteur then 1;

@@ -1,0 +1,55 @@
+-- B5 
+select num_distinct, to_char(utl_raw.cast_to_number(low_value)) as 
+lv, to_char(utl_raw.cast_to_number(high_value)) as 
+hv, num_nulls from user_TAB_COL_STATISTICS 
+where table_name = 'JOUEUR' and column_name = 'TAILLE'; 
+
+
+-- B6
+SELECT ENDPOINT_VALUE, ENDPOINT_NUMBER FROM USER_TAB_HISTOGRAMS 
+WHERE TABLE_NAME = 'JOUEUR' AND COLUMN_NAME = 'TAILLE' ORDER BY ENDPOINT_NUMBER asc;
+
+grant select on league to TP;
+
+
+-- B-1
+exec dbms_stats.gather_schema_stats('L3IT1');
+
+-- B-2
+select num_rows, blocks, avg_row_len 
+from user_tab_statistics where table_name = 'JOUEUR';
+-- on trouve bien 11060 lignes, 80 blocs, par contre une taille moyenne de ligne à 36 octets 
+ce qui montre bien que notre estimation à 62 était incorrecte. 36 octets semblent assez logique pour 6 colonnes.
+
+-- B-3
+select blevel, leaf_blocks, distinct_keys, clustering_factor 
+from user_IND_STATISTICS where index_name = 'PK_JOUEUR';
+-- tout est ok 1, 31, 11060, 10836
+
+-- B-4
+insert into joueur (joueurid) values (1111111111111);
+-- les statistiques ne sont pas modifiées
+-- on exécute 
+EXEC dbms_stats.gather_table_stats('L3IT1', 'JOUEUR'); 
+-- et les statistiques sont bien mises à jour (11061 lignes)
+
+-- B-5
+select 
+  num_distinct,
+  to_char(utl_raw.cast_to_number(low_value)) as lv,
+  to_char(utl_raw.cast_to_number(high_value)) as hv,
+  num_nulls
+  from user_TAB_COL_STATISTICS where table_name = 'JOUEUR' and column_name = 'TAILLE';
+
+-- vérification avec :
+select distinct taille from joueur;
+select min(taille) from joueur;
+select max(taille) from joueur;
+select count(*) from joueur where taille is null;
+
+-- B-6
+SELECT   ENDPOINT_VALUE, ENDPOINT_NUMBER
+FROM     USER_TAB_HISTOGRAMS
+WHERE    TABLE_NAME = 'JOUEUR' AND COLUMN_NAME = 'TAILLE'
+ORDER BY ENDPOINT_NUMBER asc;
+-- 1 de taille 1,57 ; 2 de taille 1,6; 9 de taille 1.63 etc.

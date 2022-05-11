@@ -1,0 +1,45 @@
+-- B6
+alter table joueur add poste varchar2(100); 
+alter table joueur add constraint ck_joueur_poste check (poste in ('Gardien', 'Défenseur', 'Milieu', 'Attaquant')); 
+insert into joueur (joueurid, poste) values (14, 'M')
+
+-- B7
+alter table joueur add constraint ck_joueur_age check ((to_date('01/01/2016', 'DD/MM/YYYY') - datenaissance) 
+> (14*365.25));
+
+
+-- B9 
+update joueur set nom_joueur = ' ' 
+where nom_joueur is null; 
+
+update joueur set prenom_joueur = ' ' 
+where prenom_joueur is null; 
+
+alter table joueur add constraint ck_joueur_nom_prenom check (nom_joueur is not null and prenom_joueur is not null);
+alter table ligue add constraint ck_ligue_pays unique(pays);
+
+-- B10
+alter table match add constraint ck_match_score check ((scorelocale is null and scorevisiteur is null) 
+or (scorelocale is not null and scorevisiteur is not null));
+
+
+-- B11
+
+
+
+alter table joueur add constraint ck_joueur_age check ((to_date('01/01/2016', 'DD/MM/YYYY') - datenaissance) 
+> (14*365.25)) deferrable; set constraint ck_joueur_age deferred; 
+
+insert into joueur (joueurid, datenaissance) values (17, sysdate); 
+insert into joueur (joueurid, datenaissance) values (18, to_date('01/01/2000', 'DD/MM/YYYY')); 
+commit;
+
+
+disable alter table joueur modify constraint ck_joueur_age disable; 
+insert into joueur (joueurid, datenaissance) values (20, sysdate); 
+alter table joueur modify constraint ck_joueur_age enable;
+
+
+ate or replace trigger trig_joueur_modif after 
+insert or update or delete on joueur begin DBMS_OUTPUT.PUT_LINE('Modification de la base Joueur!'); 
+END;
